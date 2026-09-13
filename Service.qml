@@ -11,6 +11,7 @@ Item {
 
   property bool installed: false
   property bool loading: false
+  property bool refreshPending: false
   property var devices: []
   property string lastError: ""
   property string actionStatus: ""
@@ -18,10 +19,31 @@ Item {
 
   readonly property int refreshIntervalSec: intSetting("refreshIntervalSec", 30, 5, 3600)
   readonly property int readyCount: countReady()
-  readonly property bool busy: whichProcess.running || devicesProcess.running
+  readonly property bool busy: helperProcess.running
+  readonly property string helperPath: Qt.resolvedUrl("omdesky_runner.py").toString().replace("file://", "")
+  readonly property var helperEnvironment: ({
+    "PATH": "/usr/local/bin:/usr/bin",
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "HOME": Quickshell.env("HOME"),
+    "USER": Quickshell.env("USER"),
+    "LOGNAME": Quickshell.env("LOGNAME"),
+    "XDG_CONFIG_HOME": Quickshell.env("XDG_CONFIG_HOME"),
+    "XDG_DATA_HOME": Quickshell.env("XDG_DATA_HOME"),
+    "XDG_CACHE_HOME": Quickshell.env("XDG_CACHE_HOME"),
+    "XDG_STATE_HOME": Quickshell.env("XDG_STATE_HOME"),
+    "XDG_RUNTIME_DIR": Quickshell.env("XDG_RUNTIME_DIR"),
+    "DBUS_SESSION_BUS_ADDRESS": Quickshell.env("DBUS_SESSION_BUS_ADDRESS"),
+    "WAYLAND_DISPLAY": Quickshell.env("WAYLAND_DISPLAY"),
+    "DISPLAY": Quickshell.env("DISPLAY"),
+    "HYPRLAND_INSTANCE_SIGNATURE": Quickshell.env("HYPRLAND_INSTANCE_SIGNATURE"),
+    "XDG_CURRENT_DESKTOP": Quickshell.env("XDG_CURRENT_DESKTOP"),
+    "XDG_SESSION_TYPE": Quickshell.env("XDG_SESSION_TYPE")
+  })
 
-  property string _devicesOutput: ""
-  property string _devicesError: ""
+  property string _operation: ""
+  property string _helperOutput: ""
+  property bool _timedOut: false
 
   function setting(name, fallback) {
     var value = settings ? settings[name] : undefined
@@ -56,40 +78,68 @@ Item {
     return total
   }
 
-  function refresh() {
-    if (installed) {
-      refreshDevices()
+  function runHelper(operation, arguments) {
+    if (helperProcess.running) {
+      if (operation === "devices") refreshPending = true
       return
     }
 
-    if (!whichProcess.running) {
-      loading = true
-      whichProcess.command = ["which", "omdesky"]
-      whichProcess.running = true
-    }
+    _operation = operation
+    _helperOutput = ""
+    _timedOut = false
+    loading = operation === "probe" || operation === "devices"
+    helperProcess.command = [helperPath, operation].concat(arguments || [])
+    helperProcess.running = true
+  }
+
+  function refresh() {
+    runHelper(installed ? "devices" : "probe", [])
   }
 
   function refreshDevices() {
-    if (!installed || devicesProcess.running) return
-
-    _devicesOutput = ""
-    _devicesError = ""
-    loading = true
-    devicesProcess.command = ["omdesky", "devices", "--json"]
-    devicesProcess.running = true
-
-    if (!pollWatchdog.running) pollWatchdog.start()
+    if (!installed) return
+    runHelper("devices", [])
   }
 
-  function parseDevices(raw) {
-    var parsed = Model.parseDevices(raw)
-    if (!parsed.ok) {
-      lastError = parsed.error || "Failed to read devices"
-      return
+  function finishHelper(exitCode) {
+    loading = false
+
+    if (_timedOut) {
+      devices = []
+      lastError = "Omdesky did not respond in time"
+    } else {
+      var response = null
+
+      try {
+        response = JSON.parse(String(helperStdout.text || _helperOutput || ""))
+      } catch (error) {
+        response = null
+      }
+
+      if (!response || response.ok !== true) {
+        if (_operation === "probe") installed = false
+        if (_operation === "devices") devices = []
+        lastError = response && response.message ? String(response.message).slice(0, 256) : "Omdesky helper failed"
+      } else if (_operation === "probe") {
+        installed = response.installed === true
+        lastError = installed ? "" : "Omdesky is not installed in a trusted location"
+        if (installed) refreshDevices()
+      } else if (_operation === "devices") {
+        var parsed = Model.parseDevices(_helperOutput || helperStdout.text)
+        if (parsed.ok) {
+          devices = parsed.devices
+          lastError = ""
+        } else {
+          devices = []
+          lastError = parsed.error || "Failed to read devices"
+        }
+      }
     }
 
-    devices = parsed.devices
-    lastError = ""
+    if (refreshPending) {
+      refreshPending = false
+      refresh()
+    }
   }
 
   function isReady(device) {
@@ -104,12 +154,14 @@ Item {
 
     connectingName = name
     actionStatus = "Connecting to " + name + "…"
-    Quickshell.execDetached(["omarchy-launch-tui", "--app-id=org.omarchy.omdesky", "omdesky", "connect", name, "--input", "remote"])
+    launchProcess.command = [helperPath, "connect", name]
+    launchProcess.startDetached()
     actionStatusTimer.restart()
   }
 
   function openSettings() {
-    Quickshell.execDetached(["omarchy-launch-tui", "--app-id=org.omarchy.omdesky", "omdesky"])
+    launchProcess.command = [helperPath, "open"]
+    launchProcess.startDetached()
   }
 
   Timer {
@@ -122,12 +174,23 @@ Item {
   }
 
   Timer {
-    id: pollWatchdog
+    id: helperWatchdog
     interval: 15000
     repeat: false
     onTriggered: {
-      if (whichProcess.running) whichProcess.running = false
-      if (devicesProcess.running) devicesProcess.running = false
+      if (!helperProcess.running) return
+      root._timedOut = true
+      helperProcess.running = false
+      killWatchdog.restart()
+    }
+  }
+
+  Timer {
+    id: killWatchdog
+    interval: 1000
+    repeat: false
+    onTriggered: {
+      if (helperProcess.running) helperProcess.signal(9)
     }
   }
 
@@ -142,39 +205,29 @@ Item {
   }
 
   Process {
-    id: whichProcess
+    id: helperProcess
     running: false
     command: []
+    clearEnvironment: true
+    environment: root.helperEnvironment
+    stdout: StdioCollector {
+      id: helperStdout
+      waitForEnd: true
+      onStreamFinished: root._helperOutput = text
+    }
+    onStarted: helperWatchdog.restart()
     onExited: function(exitCode) {
-      root.installed = exitCode === 0
-      if (root.installed) {
-        root.refreshDevices()
-      } else {
-        root.loading = false
-        root.devices = []
-        root.lastError = "omdesky is not installed"
-      }
+      helperWatchdog.stop()
+      killWatchdog.stop()
+      root.finishHelper(exitCode)
     }
   }
 
   Process {
-    id: devicesProcess
+    id: launchProcess
     running: false
     command: []
-    stdout: StdioCollector { id: devicesStdout; waitForEnd: true; onStreamFinished: root._devicesOutput = text }
-    stderr: StdioCollector { id: devicesStderr; waitForEnd: true; onStreamFinished: root._devicesError = text }
-    onExited: function(exitCode) {
-      root.loading = false
-
-      var stdout = String(devicesStdout.text || root._devicesOutput || "")
-      var stderr = String(devicesStderr.text || root._devicesError || "")
-
-      if (exitCode === 0) {
-        root.parseDevices(stdout)
-      } else {
-        root.devices = []
-        root.lastError = stderr.trim() || "Could not list devices"
-      }
-    }
+    clearEnvironment: true
+    environment: root.helperEnvironment
   }
 }

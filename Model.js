@@ -22,17 +22,23 @@ function osIcon(status) {
   return statusMeta(status).ready ? "󰇄" : "󰢹"
 }
 
+function boundedString(value, limit) {
+  return Array.from(String(value || "")).slice(0, limit).join("")
+}
+
 function deviceFromJson(entry) {
   var source = entry || {}
+  var latency = source.latencyMs
+  if (typeof latency !== "number" || !isFinite(latency) || latency < 0 || latency > 600000) latency = null
   return {
-    name: String(source.name || ""),
-    address: String(source.address || ""),
-    status: String(source.status || ""),
-    connection: String(source.connection || ""),
-    latencyMs: typeof source.latency_ms === "number" ? source.latency_ms : null,
-    isLocal: source.is_local === true,
-    agentVersion: String(source.agent_version || ""),
-    omarchyVersion: String(source.omarchy_version || "")
+    name: boundedString(source.name, 256),
+    address: boundedString(source.address, 64),
+    status: boundedString(source.status, 32),
+    connection: boundedString(source.connection, 32),
+    latencyMs: latency === null ? null : Math.floor(latency),
+    isLocal: source.isLocal === true,
+    agentVersion: boundedString(source.agentVersion, 128),
+    omarchyVersion: boundedString(source.omarchyVersion, 128)
   }
 }
 
@@ -53,13 +59,16 @@ function parseDevices(raw) {
 
   try {
     var data = JSON.parse(text)
-    if (!(data && typeof data.length === "number")) {
-      return { ok: false, devices: [], error: "Unexpected devices output" }
+    if (!(data && data.ok === true && Array.isArray(data.devices))) {
+      var error = data && data.message ? boundedString(data.message, 256) : "Unexpected devices output"
+      return { ok: false, devices: [], error: error }
     }
 
     var out = []
-    for (var i = 0; i < data.length; i++) {
-      var device = deviceFromJson(data[i])
+    var count = Math.min(data.devices.length, 128)
+    for (var i = 0; i < count; i++) {
+      if (!data.devices[i] || typeof data.devices[i] !== "object") continue
+      var device = deviceFromJson(data.devices[i])
       if (device.isLocal) continue
       out.push(device)
     }
@@ -83,6 +92,7 @@ if (typeof module !== "undefined") {
     connectionLabel: connectionLabel,
     latencyLabel: latencyLabel,
     osIcon: osIcon,
+    boundedString: boundedString,
     deviceFromJson: deviceFromJson,
     subtitle: subtitle,
     parseDevices: parseDevices
