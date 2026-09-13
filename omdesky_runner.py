@@ -124,19 +124,13 @@ def normalize_device(entry):
 
 
 def terminate_and_reap(process):
-    if process.poll() is not None:
-        process.wait()
-        return
-
     try:
         os.killpg(process.pid, signal.SIGTERM)
     except ProcessLookupError:
-        process.wait()
-        return
+        pass
 
     try:
         process.wait(timeout=TERMINATE_GRACE_SECONDS)
-        return
     except subprocess.TimeoutExpired:
         pass
 
@@ -196,14 +190,6 @@ def run_bounded(command, timeout_seconds, stdout_limit, stderr_limit):
                     return None, None, "output_limit"
 
                 destination.extend(chunk)
-
-            if process.poll() is not None and not events:
-                for key in list(selector.get_map().values()):
-                    chunk = os.read(key.fileobj.fileno(), 8192)
-
-                    if not chunk:
-                        selector.unregister(key.fileobj)
-                        key.fileobj.close()
 
         return_code = process.wait()
     except BaseException:
