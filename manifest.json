@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "omdesky.remote",
   "name": "Omdesky",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": "limahigor",
   "license": "MIT",
   "description": "Browse your Omdesky devices and start a remote desktop session with a click, right from the Omarchy bar.",
