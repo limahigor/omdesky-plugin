@@ -24,11 +24,9 @@ Inside the panel:
 
 ## Requirements
 
-- The [`omdesky`](https://github.com/limahigor/omdesky) CLI on your `PATH`
+- The [`omdesky`](https://github.com/limahigor/omdesky) CLI installed by its Arch package in `/usr/bin`, or by its standalone installer in `~/.local/bin`
 
-The widget reads devices from `omdesky devices --json` and connects with
-`omdesky connect <name> --input remote`, launched in the Omarchy terminal so you
-can follow progress and see any errors.
+The widget resolves only those trusted installation locations. It uses a supervised helper with bounded output, device and field limits, a closed environment, and enforced terminate, kill, and reap cleanup. Connections still launch `omdesky connect <name> --input remote` in the Omarchy terminal so you can follow progress and see any errors.
 
 ## Install
 
@@ -46,6 +44,8 @@ omarchy plugin add https://github.com/limahigor/omdesky-plugin.git --enable
 3. Enable it: `omarchy plugin enable omdesky.remote`.
 
 ## Configuration
+
+The helper requires `/usr/bin/python3`, included by the standard Omarchy installation.
 
 The widget exposes one setting, editable from Setup > Plugins:
 
