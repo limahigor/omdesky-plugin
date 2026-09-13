@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "id": "omdesky.remote",
+  "name": "Omdesky",
+  "version": "0.1.0",
+  "author": "limahigor",
+  "license": "MIT",
+  "description": "Browse your Omdesky devices and start a remote desktop session with a click, right from the Omarchy bar.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Omdesky",
+    "description": "List Omdesky devices and connect to one with a click.",
+    "category": "Network",
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "refreshIntervalSec": 30
+    },
+    "schema": [
+      {
+        "key": "refreshIntervalSec",
+        "type": "integer",
+        "label": "Refresh interval (seconds)",
+        "min": 5,
+        "max": 3600,
+        "step": 5,
+        "defaultValue": 30
+      }
+    ]
+  }
+}
