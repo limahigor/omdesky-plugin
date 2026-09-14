@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import signal
 import stat
+import subprocess
 import tempfile
 import time
 import unittest
@@ -69,6 +70,67 @@ class RunnerTests(unittest.TestCase):
             self.assertIsNone(output)
             self.assertEqual(failure, "timeout")
             self.assertLess(time.monotonic() - started, 2)
+
+    def test_query_times_out_when_descendant_keeps_pipe_open(self):
+        with tempfile.TemporaryDirectory() as directory:
+            executable = self.executable(
+                directory,
+                "#!/usr/bin/python3\n"
+                "import os,sys,time\n"
+                "r, w = os.pipe()\n"
+                "pid = os.fork()\n"
+                "if pid == 0:\n"
+                "    time.sleep(30)\n"
+                "    os._exit(0)\n"
+                "sys.exit(0)\n",
+            )
+            started = time.monotonic()
+
+            return_code, output, failure = RUNNER.run_bounded(
+                [executable, "devices", "--json"], 0.3, 1024, 1024
+            )
+
+            self.assertIsNone(return_code)
+            self.assertIsNone(output)
+            self.assertEqual(failure, "timeout")
+            self.assertLess(time.monotonic() - started, 3)
+
+    def test_terminate_reaps_group_after_leader_exit(self):
+        with tempfile.TemporaryDirectory() as directory:
+            executable = self.executable(
+                directory,
+                "#!/usr/bin/python3\n"
+                "import os,sys,time\n"
+                "pid = os.fork()\n"
+                "if pid == 0:\n"
+                "    time.sleep(30)\n"
+                "    os._exit(0)\n"
+                "sys.exit(0)\n",
+            )
+            process = subprocess.Popen(
+                [str(executable)],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+            time.sleep(0.2)
+
+            RUNNER.terminate_and_reap(process)
+
+            self.assertIsNotNone(process.returncode)
+
+            deadline = time.monotonic() + 2
+            group_alive = True
+            while time.monotonic() < deadline:
+                try:
+                    os.killpg(process.pid, 0)
+                except ProcessLookupError:
+                    group_alive = False
+                    break
+                time.sleep(0.05)
+
+            self.assertFalse(group_alive)
 
     def test_query_limits_devices_and_fields(self):
         with tempfile.TemporaryDirectory() as directory:
