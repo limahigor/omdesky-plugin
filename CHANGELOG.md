@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Blocked devices show why they cannot connect — "Incompatible", "Access denied" or "Allow it here" — and the row subtitle gives the command to run and on which computer.
-- `scripts/validate-plugin.sh` and a CI workflow run the Omarchy manifest checks plus the plugin's own security checks and tests on every push.
+- A CI workflow runs Omarchy's own manifest validator from a pinned, checksummed copy, `scripts/validate-plugin.sh` for the plugin's security checks, and the tests on every push.
 - The README documents how to remove the plugin and lists its external dependencies.
 
 ### Security
