@@ -149,7 +149,7 @@ class RunnerTests(unittest.TestCase):
             ]
             executable = self.executable(
                 directory,
-                "#!/usr/bin/python3\nimport json\nprint(json.loads(" + repr(json.dumps(json.dumps(devices))) + "))\n",
+                "#!/usr/bin/python3\nimport json\nprint(json.loads(" + repr(json.dumps(json.dumps({"schema": 1, "devices": devices}))) + "))\n",
             )
 
             result = RUNNER.query_devices(executable)
@@ -160,6 +160,43 @@ class RunnerTests(unittest.TestCase):
                 len(result["devices"][0]["name"].encode("utf-8")),
                 RUNNER.MAX_NAME_BYTES,
             )
+
+    def test_query_rejects_an_unsupported_schema(self):
+        with tempfile.TemporaryDirectory() as directory:
+            executable = self.executable(
+                directory,
+                "#!/usr/bin/python3\nprint('[]')\n",
+            )
+
+            result = RUNNER.query_devices(executable)
+
+            self.assertEqual(result["code"], "unsupported_schema")
+
+    def test_query_keeps_bounded_blockers(self):
+        with tempfile.TemporaryDirectory() as directory:
+            document = {
+                "schema": 1,
+                "devices": [
+                    {
+                        "name": "desk-b",
+                        "status": "blocked",
+                        "blockers": [
+                            {"code": "needs_access", "side": "local", "fix": "x" * 1024}
+                        ]
+                        * 10,
+                    }
+                ],
+            }
+            executable = self.executable(
+                directory,
+                "#!/usr/bin/python3\nprint(" + repr(json.dumps(document)) + ")\n",
+            )
+
+            result = RUNNER.query_devices(executable)
+
+            blockers = result["devices"][0]["blockers"]
+            self.assertEqual(len(blockers), RUNNER.MAX_BLOCKERS)
+            self.assertLessEqual(len(blockers[0]["fix"].encode("utf-8")), RUNNER.MAX_BLOCKER_FIX_BYTES)
 
     def test_closed_environment_does_not_inherit_unknown_values(self):
         os.environ["OMDESKY_TEST_SECRET"] = "secret"

@@ -7,9 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** requires Omdesky 0.2. The helper reads the versioned `{"schema": 1, "devices": [...]}` output and reports an unsupported schema instead of guessing at another format.
+
 ### Added
 
-- Devices missing an allowlist entry on either side are labelled "Access denied" or "Allow it here" instead of an unknown status.
+- Blocked devices show why they cannot connect — "Incompatible", "Access denied" or "Allow it here" — and the row subtitle gives the command to run and on which computer.
 
 ### Fixed
 

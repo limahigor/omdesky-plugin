@@ -26,7 +26,9 @@ Inside the panel:
 
 - The [`omdesky`](https://github.com/limahigor/omdesky) CLI installed by its Arch package in `/usr/bin`, or by its standalone installer in `~/.local/bin`
 
-Omdesky 0.2 requires each computer to list the other with `omdesky access allow <device>`. A device that does not list this computer is shown as "Access denied"; a device this computer does not list is shown as "Allow it here". Neither can be clicked until the missing entry is added.
+This version requires Omdesky 0.2 or later on the same release line; an older CLI is reported as unsupported.
+
+Omdesky 0.2 requires each computer to list the other with `omdesky access allow <device>`. A blocked device cannot be clicked: its label says why ("Incompatible", "Access denied" or "Allow it here") and its subtitle gives the command to run and on which computer.
 
 The widget resolves only those trusted installation locations. It uses a supervised helper with bounded output, device and field limits, a closed environment, and enforced terminate, kill, and reap cleanup. Connections still launch `omdesky connect <name> --input remote` in the Omarchy terminal so you can follow progress and see any errors.
 

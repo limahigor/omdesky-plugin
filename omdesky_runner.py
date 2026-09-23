@@ -21,6 +21,10 @@ MAX_ADDRESS_BYTES = 64
 MAX_STATUS_BYTES = 32
 MAX_CONNECTION_BYTES = 32
 MAX_VERSION_BYTES = 128
+MAX_BLOCKERS = 4
+MAX_BLOCKER_CODE_BYTES = 32
+MAX_BLOCKER_FIX_BYTES = 256
+SUPPORTED_SCHEMA = 1
 QUERY_TIMEOUT_SECONDS = 12
 TERMINATE_GRACE_SECONDS = 1
 
@@ -98,6 +102,27 @@ def bounded_text(value, byte_limit):
     return encoded[:byte_limit].decode("utf-8", errors="ignore")
 
 
+def normalize_blockers(value):
+    if not isinstance(value, list):
+        return []
+
+    blockers = []
+
+    for blocker in value[:MAX_BLOCKERS]:
+        if not isinstance(blocker, dict):
+            continue
+
+        blockers.append(
+            {
+                "code": bounded_text(blocker.get("code"), MAX_BLOCKER_CODE_BYTES),
+                "side": bounded_text(blocker.get("side"), MAX_BLOCKER_CODE_BYTES),
+                "fix": bounded_text(blocker.get("fix"), MAX_BLOCKER_FIX_BYTES),
+            }
+        )
+
+    return blockers
+
+
 def normalize_device(entry):
     if not isinstance(entry, dict):
         return None
@@ -115,6 +140,7 @@ def normalize_device(entry):
         "name": bounded_text(entry.get("name"), MAX_NAME_BYTES),
         "address": bounded_text(entry.get("address"), MAX_ADDRESS_BYTES),
         "status": bounded_text(entry.get("status"), MAX_STATUS_BYTES),
+        "blockers": normalize_blockers(entry.get("blockers")),
         "connection": bounded_text(entry.get("connection"), MAX_CONNECTION_BYTES),
         "latencyMs": latency,
         "isLocal": entry.get("is_local") is True,
@@ -231,12 +257,20 @@ def query_devices(executable, stdout_limit=MAX_STDOUT_BYTES):
     except (UnicodeDecodeError, json.JSONDecodeError):
         return error("invalid_output", "Omdesky returned invalid device data")
 
-    if not isinstance(data, list):
+    if not isinstance(data, dict) or data.get("schema") != SUPPORTED_SCHEMA:
+        return error(
+            "unsupported_schema",
+            "This Omdesky version is not supported by the plugin; update both",
+        )
+
+    entries = data.get("devices")
+
+    if not isinstance(entries, list):
         return error("invalid_output", "Omdesky returned unexpected device data")
 
     devices = []
 
-    for entry in data[:MAX_DEVICES]:
+    for entry in entries[:MAX_DEVICES]:
         device = normalize_device(entry)
 
         if device is not None and not device["isLocal"]:
@@ -245,7 +279,7 @@ def query_devices(executable, stdout_limit=MAX_STDOUT_BYTES):
     return {
         "ok": True,
         "devices": devices,
-        "truncated": len(data) > MAX_DEVICES,
+        "truncated": len(entries) > MAX_DEVICES,
     }
 
 

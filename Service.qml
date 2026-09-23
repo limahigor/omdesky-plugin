@@ -58,12 +58,12 @@ Item {
     return parsed
   }
 
-  function statusMeta(status) {
-    return Model.statusMeta(status)
+  function deviceStatus(device) {
+    return Model.deviceStatus(device)
   }
 
-  function osIcon(status) {
-    return Model.osIcon(status)
+  function osIcon(device) {
+    return Model.osIcon(device)
   }
 
   function subtitle(device) {
@@ -73,7 +73,7 @@ Item {
   function countReady() {
     var total = 0
     for (var i = 0; i < devices.length; i++) {
-      if (Model.statusMeta(devices[i].status).ready) total += 1
+      if (Model.deviceStatus(devices[i]).ready) total += 1
     }
     return total
   }
@@ -143,7 +143,7 @@ Item {
   }
 
   function isReady(device) {
-    return device ? Model.statusMeta(device.status).ready : false
+    return Model.deviceStatus(device).ready
   }
 
   function connect(device) {
