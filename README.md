@@ -26,6 +26,8 @@ Inside the panel:
 
 - The [`omdesky`](https://github.com/limahigor/omdesky) CLI installed by its Arch package in `/usr/bin`, or by its standalone installer in `~/.local/bin`
 
+Omdesky 0.2 refuses control requests from devices that are not on its allowlist, so a device can be listed as ready and still reject the connection. Run `omdesky access allow <device>` on both computers; the terminal that opens on connect shows the refusal if one is missing.
+
 The widget resolves only those trusted installation locations. It uses a supervised helper with bounded output, device and field limits, a closed environment, and enforced terminate, kill, and reap cleanup. Connections still launch `omdesky connect <name> --input remote` in the Omarchy terminal so you can follow progress and see any errors.
 
 ## Install
