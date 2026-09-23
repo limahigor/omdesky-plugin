@@ -24,13 +24,17 @@ Inside the panel:
 
 ## Requirements
 
-- The [`omdesky`](https://github.com/limahigor/omdesky) CLI installed by its Arch package in `/usr/bin`, or by its standalone installer in `~/.local/bin`
+- The [`omdesky`](https://github.com/limahigor/omdesky) CLI installed by its Arch package in `/usr/bin`, or by its standalone installer in `~/.local/bin`, with its user agent running
+- `/usr/bin/python3`, included by the standard Omarchy installation, for the device helper
+- The external tools Omdesky itself drives: Tailscale, Moonlight on this computer and Sunshine on the computers you connect to
+
+The plugin installs nothing else and does not change any configuration outside its own directory.
 
 This version requires Omdesky 0.2 or later on the same release line; an older CLI is reported as unsupported.
 
 Omdesky 0.2 requires each computer to list the other with `omdesky access allow <device>`. A blocked device cannot be clicked: its label says why ("Incompatible", "Access denied" or "Allow it here") and its subtitle gives the command to run and on which computer.
 
-The widget resolves only those trusted installation locations. It uses a supervised helper with bounded output, device and field limits, a closed environment, and enforced terminate, kill, and reap cleanup. Connections still launch `omdesky connect <name> --input remote` in the Omarchy terminal so you can follow progress and see any errors.
+The widget resolves only those trusted installation locations. It uses a supervised helper with bounded output, device and field limits, a closed environment, and enforced terminate, kill, and reap cleanup. Connections launch `omdesky connect --input remote -- <tailscale-address>` in the Omarchy terminal so you can follow progress and see any errors.
 
 ## Install
 
@@ -47,9 +51,15 @@ omarchy plugin add https://github.com/limahigor/omdesky-plugin.git --enable
 2. Reload the shell: `omarchy-shell shell rescanPlugins`.
 3. Enable it: `omarchy plugin enable omdesky.remote`.
 
-## Configuration
+## Remove
 
-The helper requires `/usr/bin/python3`, included by the standard Omarchy installation.
+```bash
+omarchy plugin remove omdesky.remote
+```
+
+To remove it by hand, disable it with `omarchy plugin disable omdesky.remote`, delete `~/.config/omarchy/plugins/omdesky.remote/`, and reload the shell with `omarchy-shell shell rescanPlugins`. The plugin keeps no other files; removing it does not touch the `omdesky` CLI, its agent or its configuration.
+
+## Configuration
 
 ## Security
 
