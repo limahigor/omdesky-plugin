@@ -61,6 +61,10 @@ To remove it by hand, disable it with `omarchy plugin disable omdesky.remote`, d
 
 ## Configuration
 
+The widget exposes one setting, editable from Setup > Plugins:
+
+- `refreshIntervalSec` — how often the device list refreshes (default 30s).
+
 ## Security
 
 The widget runs inside `omarchy-shell`, so it treats everything it reads as untrusted. The QML starts processes only through `/usr/bin/python3 -I omdesky_runner.py` with a cleared environment and an argument vector, never a shell. The helper bounds output size, run time and every field, strips control and bidirectional characters, and connects only to a validated Tailscale address.
@@ -68,15 +72,14 @@ The widget runs inside `omarchy-shell`, so it treats everything it reads as untr
 To check a working copy the way CI does:
 
 ```bash
+(cd scripts/vendor/omarchy && sha256sum --check SHA256SUMS)
+bash scripts/vendor/omarchy/omarchy-plugin-validate .
 scripts/validate-plugin.sh .
-omarchy plugin validate .
 python3 -I -m unittest discover -s tests
 node tests/model.test.js
 ```
 
-The widget exposes one setting, editable from Setup > Plugins:
-
-- `refreshIntervalSec` — how often the device list refreshes (default 30s).
+CI runs Omarchy's own manifest validator from a pinned, checksummed copy in `scripts/vendor/omarchy/` (Omarchy v4.0.4, MIT), so it applies exactly the rules of `omarchy plugin validate` and `omarchy plugin add`. `scripts/validate-plugin.sh` adds the plugin's own security checks on top.
 
 ## License
 
