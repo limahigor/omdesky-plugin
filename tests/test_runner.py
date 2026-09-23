@@ -172,6 +172,29 @@ class RunnerTests(unittest.TestCase):
 
             self.assertEqual(result["code"], "unsupported_schema")
 
+    def test_query_requires_the_integer_schema(self):
+        for schema in ["true", "1.0", '"1"', "2", "null"]:
+            with tempfile.TemporaryDirectory() as directory:
+                executable = self.executable(
+                    directory,
+                    "#!/usr/bin/python3\nprint('{\"schema\": " + schema + ", \"devices\": []}')\n",
+                )
+
+                result = RUNNER.query_devices(executable)
+
+                self.assertEqual(result["code"], "unsupported_schema", schema)
+
+    def test_query_accepts_the_supported_schema(self):
+        with tempfile.TemporaryDirectory() as directory:
+            executable = self.executable(
+                directory,
+                "#!/usr/bin/python3\nprint('{\"schema\": 1, \"devices\": []}')\n",
+            )
+
+            result = RUNNER.query_devices(executable)
+
+            self.assertTrue(result["ok"])
+
     def test_query_keeps_bounded_blockers(self):
         with tempfile.TemporaryDirectory() as directory:
             document = {

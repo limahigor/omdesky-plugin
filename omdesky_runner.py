@@ -289,7 +289,9 @@ def query_devices(executable, stdout_limit=MAX_STDOUT_BYTES):
     except (UnicodeDecodeError, json.JSONDecodeError):
         return error("invalid_output", "Omdesky returned invalid device data")
 
-    if not isinstance(data, dict) or data.get("schema") != SUPPORTED_SCHEMA:
+    schema = data.get("schema") if isinstance(data, dict) else None
+
+    if type(schema) is not int or schema != SUPPORTED_SCHEMA:
         return error(
             "unsupported_schema",
             "This Omdesky version is not supported by the plugin; update both",
