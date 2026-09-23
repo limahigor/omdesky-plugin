@@ -22,7 +22,7 @@ Panel {
   readonly property color urgent: bar ? bar.urgent : Color.urgent
   readonly property color dim: Qt.darker(foreground, 1.55)
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
-  readonly property color barIconColor: omdesky.readyCount > 0 ? barForeground : Qt.darker(barForeground, 1.55)
+  readonly property color barIconColor: barForeground
 
   readonly property string heroMeta: {
     if (!omdesky.installed) return "omdesky not found"

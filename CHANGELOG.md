@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - The front square of the bar icon is no longer filled with the background colour, so the mark stays an outline on any bar theme.
+- The bar icon keeps the bar's full foreground colour instead of dimming when no device is ready.
 
 ## [0.1.1] - 2026-09-13
 
