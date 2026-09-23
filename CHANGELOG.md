@@ -15,6 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Blocked devices show why they cannot connect — "Incompatible", "Access denied" or "Allow it here" — and the row subtitle gives the command to run and on which computer.
 
+### Security
+
+- Connections target the device's validated Tailscale address, passed after `--`, instead of its name, so a hostile device name can neither become a command-line option nor select another device.
+- Text from the CLI loses control, format and bidirectional characters before it reaches the bar.
+- The helper runs through `/usr/bin/python3 -I`, so it depends neither on its executable bit nor on `PYTHON*` variables or user site packages.
+
+### Added
+
+- `scripts/validate-plugin.sh` and a CI workflow run the Omarchy manifest checks plus the plugin's own security checks and tests on every push.
+
 ### Fixed
 
 - The front square of the bar icon is no longer filled with the background colour, so the mark stays an outline on any bar theme.

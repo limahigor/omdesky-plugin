@@ -19,7 +19,10 @@ function statusMeta(status, blockers) {
 }
 
 function deviceStatus(device) {
-  return device ? statusMeta(device.status, device.blockers) : statusMeta("", [])
+  if (!device) return statusMeta("", [])
+  var meta = statusMeta(device.status, device.blockers)
+  if (meta.ready && String(device.address || "") === "") return { label: "No address", ready: false }
+  return meta
 }
 
 function connectionLabel(kind) {

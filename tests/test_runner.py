@@ -198,6 +198,63 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(len(blockers), RUNNER.MAX_BLOCKERS)
             self.assertLessEqual(len(blockers[0]["fix"].encode("utf-8")), RUNNER.MAX_BLOCKER_FIX_BYTES)
 
+    def test_text_loses_control_and_bidirectional_characters(self):
+        cleaned = RUNNER.bounded_text("desk\u202e\u0007\x1b[2J-b\u200b", 256)
+
+        self.assertEqual(cleaned, "desk[2J-b")
+
+    def test_only_tailscale_addresses_are_accepted(self):
+        self.assertIsNotNone(RUNNER.tailscale_address("100.64.0.7"))
+        self.assertIsNotNone(RUNNER.tailscale_address("fd7a:115c:a1e0::1"))
+
+        for value in ["192.168.0.10", "127.0.0.1", "desk-b", "--help", "", None, "100.64.0.7 ; x"]:
+            self.assertIsNone(RUNNER.tailscale_address(value), value)
+
+    def test_device_without_a_tailscale_address_has_no_address(self):
+        device = RUNNER.normalize_device({"name": "desk-b", "address": "10.0.0.2"})
+
+        self.assertEqual(device["address"], "")
+
+    def test_connect_passes_the_address_after_an_option_terminator(self):
+        captured = []
+
+        class FakePopen:
+            def __init__(self, command, **_):
+                captured.append(command)
+
+        original_popen = RUNNER.subprocess.Popen
+        original_launcher = RUNNER.trusted_launcher
+        RUNNER.subprocess.Popen = FakePopen
+        RUNNER.trusted_launcher = lambda: Path("/usr/share/omarchy/bin/omarchy-launch-tui")
+
+        try:
+            result = RUNNER.launch(Path("/usr/bin/omdesky"), RUNNER.tailscale_address("100.64.0.7"))
+        finally:
+            RUNNER.subprocess.Popen = original_popen
+            RUNNER.trusted_launcher = original_launcher
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(
+            captured[0][-5:],
+            ["connect", "--input", "remote", "--", "100.64.0.7"],
+        )
+
+    def test_connect_refuses_a_target_that_is_not_a_tailscale_address(self):
+        original = RUNNER.resolve_omdesky
+        RUNNER.resolve_omdesky = lambda: Path("/usr/bin/omdesky")
+        output = []
+        original_emit = RUNNER.emit
+        RUNNER.emit = output.append
+
+        try:
+            status = RUNNER.main(["omdesky_runner.py", "connect", "--workspace"])
+        finally:
+            RUNNER.resolve_omdesky = original
+            RUNNER.emit = original_emit
+
+        self.assertEqual(status, 1)
+        self.assertEqual(output[0]["code"], "invalid_target")
+
     def test_closed_environment_does_not_inherit_unknown_values(self):
         os.environ["OMDESKY_TEST_SECRET"] = "secret"
 

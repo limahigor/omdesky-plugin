@@ -51,6 +51,19 @@ omarchy plugin add https://github.com/limahigor/omdesky-plugin.git --enable
 
 The helper requires `/usr/bin/python3`, included by the standard Omarchy installation.
 
+## Security
+
+The widget runs inside `omarchy-shell`, so it treats everything it reads as untrusted. The QML starts processes only through `/usr/bin/python3 -I omdesky_runner.py` with a cleared environment and an argument vector, never a shell. The helper bounds output size, run time and every field, strips control and bidirectional characters, and connects only to a validated Tailscale address.
+
+To check a working copy the way CI does:
+
+```bash
+scripts/validate-plugin.sh .
+omarchy plugin validate .
+python3 -I -m unittest discover -s tests
+node tests/model.test.js
+```
+
 The widget exposes one setting, editable from Setup > Plugins:
 
 - `refreshIntervalSec` — how often the device list refreshes (default 30s).

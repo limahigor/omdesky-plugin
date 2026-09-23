@@ -31,6 +31,9 @@ assert.deepEqual(Model.statusMeta("blocked", [{ code: "needs_access" }]), { labe
 assert.deepEqual(Model.statusMeta("blocked", [{ code: "incompatible" }]), { label: "Incompatible", ready: false })
 assert.deepEqual(Model.statusMeta("blocked", []), { label: "Blocked", ready: false })
 
+assert.equal(Model.deviceStatus({ status: "ready", blockers: [], address: "" }).ready, false)
+assert.equal(Model.deviceStatus({ status: "ready", blockers: [], address: "100.64.0.2" }).ready, true)
+
 const blocked = Model.deviceFromJson({
   name: "desk-b",
   status: "blocked",
