@@ -4,6 +4,8 @@ function statusMeta(status) {
   if (value === "offline") return { label: "Offline", ready: false }
   if (value === "agent_unknown") return { label: "Agent unavailable", ready: false }
   if (value === "incompatible") return { label: "Incompatible", ready: false }
+  if (value === "denied") return { label: "Access denied", ready: false }
+  if (value === "needs_access") return { label: "Allow it here", ready: false }
   return { label: value === "" ? "Unknown" : value, ready: false }
 }
 

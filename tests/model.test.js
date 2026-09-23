@@ -23,3 +23,7 @@ assert.equal(arrayLike.ok, false)
 const failed = Model.parseDevices(JSON.stringify({ ok: false, message: "safe failure" }))
 assert.equal(failed.ok, false)
 assert.equal(failed.error, "safe failure")
+
+assert.deepEqual(Model.statusMeta("ready"), { label: "Ready", ready: true })
+assert.deepEqual(Model.statusMeta("denied"), { label: "Access denied", ready: false })
+assert.deepEqual(Model.statusMeta("needs_access"), { label: "Allow it here", ready: false })

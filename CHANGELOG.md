@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Devices missing an allowlist entry on either side are labelled "Access denied" or "Allow it here" instead of an unknown status.
+
 ### Fixed
 
 - The front square of the bar icon is no longer filled with the background colour, so the mark stays an outline on any bar theme.
