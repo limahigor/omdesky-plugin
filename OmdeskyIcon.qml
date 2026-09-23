@@ -19,26 +19,56 @@ Item {
   readonly property real offset: root.squareSize * 0.34
   readonly property real margin: (root.iconSize - (root.squareSize + root.offset)) / 2
 
-  Rectangle {
-    id: backSquare
-    x: root.margin
-    y: root.margin
-    width: root.squareSize
-    height: root.squareSize
-    radius: root.cornerRadius
-    color: "transparent"
-    border.width: root.stroke
-    border.color: root.color
+  readonly property real frontOrigin: root.margin + root.offset
+  readonly property real gap: root.stroke
+  readonly property real clipEdge: root.frontOrigin - root.gap
+
+  Item {
+    x: 0
+    y: 0
+    width: root.iconSize
+    height: root.clipEdge
+    clip: true
+
+    Rectangle {
+      x: root.margin
+      y: root.margin
+      width: root.squareSize
+      height: root.squareSize
+      radius: root.cornerRadius
+      color: "transparent"
+      border.width: root.stroke
+      border.color: root.color
+    }
+  }
+
+  Item {
+    x: 0
+    y: root.clipEdge
+    width: root.clipEdge
+    height: root.iconSize - root.clipEdge
+    clip: true
+
+    Rectangle {
+      x: root.margin
+      y: root.margin - root.clipEdge
+      width: root.squareSize
+      height: root.squareSize
+      radius: root.cornerRadius
+      color: "transparent"
+      border.width: root.stroke
+      border.color: root.color
+    }
   }
 
   Rectangle {
     id: frontSquare
-    x: root.margin + root.offset
-    y: root.margin + root.offset
+    x: root.frontOrigin
+    y: root.frontOrigin
     width: root.squareSize
     height: root.squareSize
     radius: root.cornerRadius
-    color: Color.background
+    color: "transparent"
     border.width: root.stroke
     border.color: root.color
   }

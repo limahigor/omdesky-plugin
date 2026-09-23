@@ -23,3 +23,33 @@ assert.equal(arrayLike.ok, false)
 const failed = Model.parseDevices(JSON.stringify({ ok: false, message: "safe failure" }))
 assert.equal(failed.ok, false)
 assert.equal(failed.error, "safe failure")
+
+assert.deepEqual(Model.statusMeta("ready", []), { label: "Ready", ready: true })
+assert.deepEqual(Model.statusMeta("unavailable", []), { label: "Agent unavailable", ready: false })
+assert.deepEqual(Model.statusMeta("blocked", [{ code: "denied" }]), { label: "Access denied", ready: false })
+assert.deepEqual(Model.statusMeta("blocked", [{ code: "needs_access" }]), { label: "Allow it here", ready: false })
+assert.deepEqual(Model.statusMeta("blocked", [{ code: "incompatible" }]), { label: "Incompatible", ready: false })
+assert.deepEqual(Model.statusMeta("blocked", []), { label: "Blocked", ready: false })
+
+assert.equal(Model.deviceStatus({ status: "ready", blockers: [], address: "" }).ready, false)
+assert.equal(Model.deviceStatus({ status: "ready", blockers: [], address: "100.64.0.2" }).ready, true)
+
+const blocked = Model.deviceFromJson({
+  name: "desk-b",
+  status: "blocked",
+  blockers: [
+    { code: "needs_access", side: "local", fix: "omdesky access allow desk-b" },
+    { code: "denied", side: "remote", fix: "omdesky access allow desk-a" },
+    { code: "x" }, { code: "y" }, { code: "z" }
+  ]
+})
+assert.equal(blocked.blockers.length, 4)
+assert.equal(Model.deviceStatus(blocked).ready, false)
+assert.equal(Model.subtitle(blocked), "Run omdesky access allow desk-b on this computer")
+
+const outdated = Model.deviceFromJson({
+  name: "desk-b",
+  status: "blocked",
+  blockers: [{ code: "incompatible", side: "remote", fix: "Install Omdesky 0.2.0" }]
+})
+assert.equal(Model.subtitle(outdated), "Install Omdesky 0.2.0 on desk-b")

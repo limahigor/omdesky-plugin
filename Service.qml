@@ -20,7 +20,8 @@ Item {
   readonly property int refreshIntervalSec: intSetting("refreshIntervalSec", 30, 5, 3600)
   readonly property int readyCount: countReady()
   readonly property bool busy: helperProcess.running
-  readonly property string helperPath: Qt.resolvedUrl("omdesky_runner.py").toString().replace("file://", "")
+  readonly property string helperPath: decodeURIComponent(Qt.resolvedUrl("omdesky_runner.py").toString().replace(/^file:\/\//, ""))
+  readonly property var helperCommand: ["/usr/bin/python3", "-I", helperPath]
   readonly property var helperEnvironment: ({
     "PATH": "/usr/local/bin:/usr/bin",
     "LANG": "C.UTF-8",
@@ -58,12 +59,12 @@ Item {
     return parsed
   }
 
-  function statusMeta(status) {
-    return Model.statusMeta(status)
+  function deviceStatus(device) {
+    return Model.deviceStatus(device)
   }
 
-  function osIcon(status) {
-    return Model.osIcon(status)
+  function osIcon(device) {
+    return Model.osIcon(device)
   }
 
   function subtitle(device) {
@@ -73,7 +74,7 @@ Item {
   function countReady() {
     var total = 0
     for (var i = 0; i < devices.length; i++) {
-      if (Model.statusMeta(devices[i].status).ready) total += 1
+      if (Model.deviceStatus(devices[i]).ready) total += 1
     }
     return total
   }
@@ -88,7 +89,7 @@ Item {
     _helperOutput = ""
     _timedOut = false
     loading = operation === "probe" || operation === "devices"
-    helperProcess.command = [helperPath, operation].concat(arguments || [])
+    helperProcess.command = helperCommand.concat([operation]).concat(arguments || [])
     helperProcess.running = true
   }
 
@@ -143,24 +144,25 @@ Item {
   }
 
   function isReady(device) {
-    return device ? Model.statusMeta(device.status).ready : false
+    return Model.deviceStatus(device).ready
   }
 
   function connect(device) {
     if (!device || !isReady(device)) return
 
     var name = String(device.name || "")
-    if (name === "") return
+    var address = String(device.address || "")
+    if (name === "" || address === "") return
 
     connectingName = name
     actionStatus = "Connecting to " + name + "…"
-    launchProcess.command = [helperPath, "connect", name]
+    launchProcess.command = helperCommand.concat(["connect", address])
     launchProcess.startDetached()
     actionStatusTimer.restart()
   }
 
   function openSettings() {
-    launchProcess.command = [helperPath, "open"]
+    launchProcess.command = helperCommand.concat(["open"])
     launchProcess.startDetached()
   }
 

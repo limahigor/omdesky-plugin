@@ -22,7 +22,7 @@ Panel {
   readonly property color urgent: bar ? bar.urgent : Color.urgent
   readonly property color dim: Qt.darker(foreground, 1.55)
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
-  readonly property color barIconColor: omdesky.readyCount > 0 ? barForeground : Qt.darker(barForeground, 1.55)
+  readonly property color barIconColor: barForeground
 
   readonly property string heroMeta: {
     if (!omdesky.installed) return "omdesky not found"
@@ -241,7 +241,7 @@ Panel {
     property int rowIndex: 0
 
     readonly property string deviceName: device ? String(device.name || "Unknown") : "Unknown"
-    readonly property var statusMeta: omdesky.statusMeta(device ? device.status : "")
+    readonly property var statusMeta: omdesky.deviceStatus(device)
     readonly property bool ready: statusMeta.ready
 
     hasCursor: root.cursorActive && root.cursorIndex === rowIndex
@@ -268,7 +268,7 @@ Panel {
 
       Text {
         textFormat: Text.PlainText
-        text: omdesky.osIcon(device ? device.status : "")
+        text: omdesky.osIcon(device)
         color: deviceRow.ready ? root.foreground : root.dim
         font.family: root.fontFamily
         font.pixelSize: Style.font.icon

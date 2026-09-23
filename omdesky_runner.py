@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+import ipaddress
 import json
 import math
 import os
@@ -10,6 +11,7 @@ import stat
 import subprocess
 import sys
 import time
+import unicodedata
 
 
 MAX_STDOUT_BYTES = 1024 * 1024
@@ -21,6 +23,14 @@ MAX_ADDRESS_BYTES = 64
 MAX_STATUS_BYTES = 32
 MAX_CONNECTION_BYTES = 32
 MAX_VERSION_BYTES = 128
+MAX_BLOCKERS = 4
+MAX_BLOCKER_CODE_BYTES = 32
+MAX_BLOCKER_FIX_BYTES = 256
+SUPPORTED_SCHEMA = 1
+TAILSCALE_NETWORKS = (
+    ipaddress.ip_network("100.64.0.0/10"),
+    ipaddress.ip_network("fd7a:115c:a1e0::/48"),
+)
 QUERY_TIMEOUT_SECONDS = 12
 TERMINATE_GRACE_SECONDS = 1
 
@@ -86,9 +96,20 @@ def closed_environment():
     return environment
 
 
+def clean_text(value):
+    return "".join(
+        character
+        for character in value
+        if unicodedata.category(character) not in {"Cc", "Cf", "Cs", "Co", "Cn"}
+        and character not in "\u2028\u2029"
+    )
+
+
 def bounded_text(value, byte_limit):
     if not isinstance(value, str):
         value = "" if value is None else str(value)
+
+    value = clean_text(value)
 
     encoded = value.encode("utf-8")
 
@@ -96,6 +117,42 @@ def bounded_text(value, byte_limit):
         return value
 
     return encoded[:byte_limit].decode("utf-8", errors="ignore")
+
+
+def tailscale_address(value):
+    if not isinstance(value, str) or len(value) > MAX_ADDRESS_BYTES:
+        return None
+
+    try:
+        address = ipaddress.ip_address(value)
+    except ValueError:
+        return None
+
+    if not any(address in network for network in TAILSCALE_NETWORKS):
+        return None
+
+    return address
+
+
+def normalize_blockers(value):
+    if not isinstance(value, list):
+        return []
+
+    blockers = []
+
+    for blocker in value[:MAX_BLOCKERS]:
+        if not isinstance(blocker, dict):
+            continue
+
+        blockers.append(
+            {
+                "code": bounded_text(blocker.get("code"), MAX_BLOCKER_CODE_BYTES),
+                "side": bounded_text(blocker.get("side"), MAX_BLOCKER_CODE_BYTES),
+                "fix": bounded_text(blocker.get("fix"), MAX_BLOCKER_FIX_BYTES),
+            }
+        )
+
+    return blockers
 
 
 def normalize_device(entry):
@@ -113,8 +170,9 @@ def normalize_device(entry):
 
     return {
         "name": bounded_text(entry.get("name"), MAX_NAME_BYTES),
-        "address": bounded_text(entry.get("address"), MAX_ADDRESS_BYTES),
+        "address": str(tailscale_address(entry.get("address")) or ""),
         "status": bounded_text(entry.get("status"), MAX_STATUS_BYTES),
+        "blockers": normalize_blockers(entry.get("blockers")),
         "connection": bounded_text(entry.get("connection"), MAX_CONNECTION_BYTES),
         "latencyMs": latency,
         "isLocal": entry.get("is_local") is True,
@@ -231,12 +289,22 @@ def query_devices(executable, stdout_limit=MAX_STDOUT_BYTES):
     except (UnicodeDecodeError, json.JSONDecodeError):
         return error("invalid_output", "Omdesky returned invalid device data")
 
-    if not isinstance(data, list):
+    schema = data.get("schema") if isinstance(data, dict) else None
+
+    if type(schema) is not int or schema != SUPPORTED_SCHEMA:
+        return error(
+            "unsupported_schema",
+            "This Omdesky version is not supported by the plugin; update both",
+        )
+
+    entries = data.get("devices")
+
+    if not isinstance(entries, list):
         return error("invalid_output", "Omdesky returned unexpected device data")
 
     devices = []
 
-    for entry in data[:MAX_DEVICES]:
+    for entry in entries[:MAX_DEVICES]:
         device = normalize_device(entry)
 
         if device is not None and not device["isLocal"]:
@@ -245,7 +313,7 @@ def query_devices(executable, stdout_limit=MAX_STDOUT_BYTES):
     return {
         "ok": True,
         "devices": devices,
-        "truncated": len(data) > MAX_DEVICES,
+        "truncated": len(entries) > MAX_DEVICES,
     }
 
 
@@ -282,7 +350,7 @@ def launch(executable, target=None):
     ]
 
     if target is not None:
-        command.extend(["connect", target, "--input", "remote"])
+        command.extend(["connect", "--input", "remote", "--", str(target)])
 
     try:
         subprocess.Popen(
@@ -330,10 +398,12 @@ def main(arguments):
         result = query_devices(executable)
     elif arguments[1] == "open":
         result = launch(executable)
-    elif len(arguments) == 3:
-        result = launch(executable, bounded_text(arguments[2], MAX_NAME_BYTES))
+    elif len(arguments) != 3:
+        result = error("invalid_command", "A device address is required")
+    elif (address := tailscale_address(arguments[2])) is None:
+        result = error("invalid_target", "The device address is not a Tailscale address")
     else:
-        result = error("invalid_command", "A device name is required")
+        result = launch(executable, address)
 
     emit(result)
     return 0 if result.get("ok") else 1
