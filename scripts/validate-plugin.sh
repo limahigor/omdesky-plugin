@@ -29,6 +29,7 @@ jq -e '.version | type == "string" and test("^[0-9]+\\.[0-9]+\\.[0-9]+$")' "$man
 jq -e '(.kinds | type) == "array" and (.kinds | length) > 0' "$manifest" >/dev/null ||
   fail "kinds must be a non-empty array"
 jq -e '(.entryPoints | type) == "object"' "$manifest" >/dev/null || fail "entryPoints must be an object"
+jq -e '[.entryPoints[] | type == "string"] | all' "$manifest" >/dev/null || fail "every entry point must be a string"
 jq -e '
   if ((.barWidget? | type) == "object" and (.barWidget | has("defaultSection"))) then
     .barWidget.defaultSection as $section
